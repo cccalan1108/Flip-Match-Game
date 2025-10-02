@@ -1,0 +1,64 @@
+
+:root {
+  --bg: #0b1220;
+  --card: #111c2e;
+  --accent: #5aa9ff;
+  --accent-2: #9be3ff;
+  --text: #d7e3ff;
+  --muted: #96a3bf;
+  --win: #2ecc71;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body { margin: 0; background: radial-gradient(1200px 600px at 50% -20%, #152642, var(--bg)); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, "Noto Sans TC", "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+
+.page { max-width: 920px; margin: 0 auto; padding: 24px 16px 64px; }
+.topbar { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.title { margin:0; letter-spacing: 0.5px; }
+.stats { display:flex; gap:16px; color: var(--muted); }
+
+.controls { display:flex; gap:12px; align-items:center; margin: 16px 0 24px; flex-wrap: wrap; }
+select, button { background: var(--card); color: var(--text); border: 1px solid #24324b; padding: 8px 12px; border-radius: 10px; cursor: pointer; }
+button:hover, select:hover { border-color: var(--accent); }
+
+.board {
+  display:grid; gap:12px; margin: 0 auto; width: min(780px, 100%);
+}
+.card {
+  position: relative;
+  aspect-ratio: 1/1;
+  border: 1px solid #1d2a41;
+  background: linear-gradient(180deg, #0e1728, #0a1423);
+  border-radius: 16px;
+  transform-style: preserve-3d;
+  transition: transform .35s ease, box-shadow .2s ease, border-color .2s ease;
+  box-shadow: 0 0 0 rgba(0,0,0,0);
+  font-size: clamp(22px, 5vw, 42px);
+  user-select: none;
+}
+.card:hover { border-color: var(--accent); box-shadow: 0 6px 14px rgba(0,0,0,.35); }
+.card.up { transform: rotateY(180deg); }
+.card.done { border-color: var(--win); outline: 2px solid transparent; }
+
+.card .front, .card .back {
+  position:absolute; inset:0;
+  display:grid; place-items:center;
+  backface-visibility:hidden;
+  border-radius: 16px;
+}
+.card .front { color: var(--accent-2); }
+.card .back { transform: rotateY(180deg); }
+
+.footer { margin-top: 28px; color: var(--muted); }
+.footer h2 { color: var(--text); }
+
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  display: grid; place-items: center;
+}
+.dialog {
+  background: #0f1a2c; border: 1px solid #24324b; border-radius: 16px; padding: 20px;
+  min-width: 260px; text-align: center;
+}
+.dialog-actions { margin-top: 12px; display:flex; justify-content:center; gap:12px; }

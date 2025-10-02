@@ -1,0 +1,185 @@
+
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flip & Match（離線版）</title>
+    <style>
+      :root{--bg:#0b1220;--card:#111c2e;--accent:#5aa9ff;--accent-2:#9be3ff;--text:#d7e3ff;--muted:#96a3bf;--win:#2ecc71}
+      *{box-sizing:border-box}
+      html,body,#app{height:100%}
+      body{margin:0;background:radial-gradient(1200px 600px at 50% -20%,#152642,var(--bg));color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Noto Sans TC","Segoe UI",Roboto,"Helvetica Neue",Arial}
+      .page{max-width:920px;margin:0 auto;padding:24px 16px 64px}
+      .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px}
+      .title{margin:0;letter-spacing:.5px}
+      .stats{display:flex;gap:16px;color:var(--muted)}
+      .controls{display:flex;gap:12px;align-items:center;margin:16px 0 24px;flex-wrap:wrap}
+      select,button{background:var(--card);color:var(--text);border:1px solid #24324b;padding:8px 12px;border-radius:10px;cursor:pointer}
+      button:hover,select:hover{border-color:var(--accent)}
+      .board{display:grid;gap:12px;margin:0 auto;width:min(780px,100%)}
+      .card{position:relative;aspect-ratio:1/1;border:1px solid #1d2a41;background:linear-gradient(180deg,#0e1728,#0a1423);border-radius:16px;transform-style:preserve-3d;transition:transform .35s ease,box-shadow .2s ease,border-color .2s ease;box-shadow:0 0 0 rgba(0,0,0,0);font-size:clamp(22px,5vw,42px);user-select:none}
+      .card:hover{border-color:var(--accent);box-shadow:0 6px 14px rgba(0,0,0,.35)}
+      .card.up{transform:rotateY(180deg)}
+      .card.done{border-color:var(--win);outline:2px solid transparent}
+      .card .front,.card .back{position:absolute;inset:0;display:grid;place-items:center;backface-visibility:hidden;border-radius:16px}
+      .card .front{color:var(--accent-2)}.card .back{transform:rotateY(180deg)}
+      .footer{margin-top:28px;color:var(--muted)}.footer h2{color:var(--text)}
+      .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center}
+      .dialog{background:#0f1a2c;border:1px solid #24324b;border-radius:16px;padding:20px;min-width:260px;text-align:center}
+      .dialog-actions{margin-top:12px;display:flex;justify-content:center;gap:12px}
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      (function(){
+        const app = document.getElementById('app');
+        const symbols = ['🍎','🚀','🎧','🎲','🌟','🎯','🎵','🧠','🧩','📚'];
+        let size = 4, deck=[], flipped=[], moves=0, elapsed=0, timer=null, running=false, won=false;
+
+        function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+        function bestKey(){ return 'best_'+size; }
+        function getBest(){ const v=localStorage.getItem(bestKey()); return v?Number(v):null; }
+        function setBest(n){ localStorage.setItem(bestKey(), String(n)); }
+
+        function newGame(){
+          const pick = symbols.slice(0, (size*size)/2);
+          deck = shuffle([...pick, ...pick]).map((s,idx)=>({id:idx, symbol:s, matched:false}));
+          flipped = []; moves = 0; elapsed=0; won=false;
+          if (timer) clearInterval(timer); running=false;
+          render();
+        }
+
+        function startTimer(){ if(running) return; running=true; timer = setInterval(()=>{ elapsed++; updateStats(); },1000); }
+
+        function onCard(i){
+          if(won) return;
+          startTimer();
+          if(flipped.includes(i) || deck[i].matched) return;
+          flipped = [...flipped, i];
+          if(flipped.length===2){
+            moves++; updateStats();
+            const [a,b]=flipped;
+            if(deck[a].symbol===deck[b].symbol){
+              setTimeout(()=>{ deck[a].matched=deck[b].matched=true; flipped=[]; checkWin(); renderBoard(); },350);
+            }else{
+              setTimeout(()=>{ flipped=[]; renderBoard(); },650);
+            }
+          } else if(flipped.length>2){ flipped=[i]; }
+          renderBoard();
+        }
+
+        function checkWin(){
+          if(deck.every(c=>c.matched)){
+            if(timer) clearInterval(timer);
+            running=false; won=true;
+            const best = getBest();
+            if(best===null || moves<best) setBest(moves);
+            renderOverlay();
+          }
+        }
+
+        function updateStats(){
+          document.getElementById('moves').textContent = String(moves);
+          document.getElementById('elapsed').textContent = String(elapsed)+'s';
+          const b = getBest(); document.getElementById('best').textContent = b===null?'-':String(b);
+        }
+
+        function renderHeader(){
+          return `
+            <header class="topbar">
+              <h1 class="title">Flip &amp; Match</h1>
+              <div class="stats">
+                <span>步數：<span id="moves">${moves}</span></span>
+                <span>時間：<span id="elapsed">${elapsed}s</span></span>
+                <span>最佳：<span id="best">${getBest()??'-'}</span></span>
+              </div>
+            </header>`;
+        }
+
+        function renderControls(){
+          return `
+            <section class="controls">
+              <label>棋盤：
+                <select id="sizeSel">
+                  <option value="4"${size===4?' selected':''}>4×4（新手）</option>
+                  <option value="6"${size===6?' selected':''}>6×6（進階）</option>
+                  <option value="8"${size===8?' selected':''}>8×8（高手）</option>
+                </select>
+              </label>
+              <button id="restart">重新開始</button>
+              <button id="reset">重置紀錄</button>
+            </section>`;
+        }
+
+        function renderBoard(){
+          const grid = size;
+          const board = document.getElementById('board');
+          board.style.gridTemplateColumns = `repeat(${grid},1fr)`;
+          board.innerHTML = deck.map((c,idx)=>{
+            const up = flipped.includes(idx) || c.matched;
+            return `
+              <button class="card ${up?'up':''} ${c.matched?'done':''}" data-idx="${idx}" aria-label="${up?c.symbol:'卡牌'}">
+                <span class="front">?</span>
+                <span class="back">${c.symbol}</span>
+              </button>`;
+          }).join('');
+          Array.from(board.querySelectorAll('.card')).forEach(btn=>{
+            btn.addEventListener('click',()=> onCard(Number(btn.dataset.idx)));
+          });
+        }
+
+        function renderFooter(){
+          return `
+            <footer class="footer">
+              <h2>玩法</h2>
+              <ol>
+                <li>點擊兩張卡牌，若圖案相同即配對成功。</li>
+                <li>所有卡牌配對完成即獲勝；用越少步數越好。</li>
+                <li>可切換不同棋盤大小訓練記憶與專注。</li>
+              </ol>
+            </footer>`;
+        }
+
+        function renderOverlay(){
+          const host = document.getElementById('overlay');
+          if(!won){ host.innerHTML=''; return; }
+          host.innerHTML = `
+            <div class="overlay">
+              <div class="dialog">
+                <h3>🎉 你贏了！</h3>
+                <p>總步數：${moves}，用時：${elapsed}s</p>
+                <div class="dialog-actions"><button id="playAgain">再玩一次</button></div>
+              </div>
+            </div>`;
+          document.getElementById('playAgain').onclick = ()=>{ newGame(); renderOverlay(); };
+        }
+
+        function render(){
+          app.innerHTML = `
+            <div class="page">
+              ${renderHeader()}
+              ${renderControls()}
+              <main id="board" class="board"></main>
+              ${renderFooter()}
+            </div>
+            <div id="overlay"></div>`;
+
+          document.getElementById('sizeSel').addEventListener('change', (e)=>{
+            size = Number(e.target.value);
+            if(running && timer) { clearInterval(timer); running=false; }
+            newGame();
+            updateStats();
+          });
+          document.getElementById('restart').onclick = ()=> newGame();
+          document.getElementById('reset').onclick = ()=> { localStorage.clear(); newGame(); updateStats(); };
+
+          renderBoard(); updateStats(); renderOverlay();
+        }
+
+        newGame();
+      })();
+    </script>
+  </body>
+</html>
